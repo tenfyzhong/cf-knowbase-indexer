@@ -43,9 +43,6 @@ jobs:
       - name: Run Knowledge Base Sync
         env:
           CONFIG_JSON: ${{ secrets.CONFIG_JSON }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_KV_NAMESPACE_ID: ${{ secrets.CLOUDFLARE_KV_NAMESPACE_ID }}
-          CLOUDFLARE_VECTORIZE_INDEX_NAME: ${{ secrets.CLOUDFLARE_VECTORIZE_INDEX_NAME }}
-          CLOUDFLARE_AI_MODEL: ${{ secrets.CLOUDFLARE_AI_MODEL || '@cf/baai/bge-base-en-v1.5' }}
+          CF_KB_API_URL: ${{ secrets.CF_KB_API_URL }}
+          CF_KB_API_TOKEN: ${{ secrets.CF_KB_API_TOKEN }}
         run: node dist/index.js

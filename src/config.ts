@@ -34,20 +34,17 @@ export type WebSource = z.infer<typeof WebSourceSchema>;
 export type Source = z.infer<typeof SourceSchema>;
 export type Config = z.infer<typeof ConfigSchema>;
 
-export const EnvSchema = z.object({
-  CLOUDFLARE_ACCOUNT_ID: z.string().min(1),
-  CLOUDFLARE_API_TOKEN: z.string().min(1),
-  CLOUDFLARE_KV_NAMESPACE_ID: z.string().min(1),
-  CLOUDFLARE_VECTORIZE_INDEX_NAME: z.string().min(1),
-  CLOUDFLARE_AI_MODEL: z.string().default("@cf/baai/bge-base-en-v1.5")
-});
-
 export interface Env {
-  accountId: string;
+  apiUrl: string;
   apiToken: string;
-  kvNamespaceId: string;
-  vectorizeIndexName: string;
-  aiModel: string;
+}
+
+function normalizeUrl(url: string): string {
+  let normalized = url.trim().replace(/\/+$/, "");
+  if (normalized.endsWith("/search")) {
+    normalized = normalized.slice(0, -"/search".length).replace(/\/+$/, "");
+  }
+  return normalized;
 }
 
 export function parseConfig(rawJson: string): Config {
@@ -56,13 +53,18 @@ export function parseConfig(rawJson: string): Config {
 }
 
 export function parseEnv(rawEnv: Record<string, string | undefined> = process.env): Env {
-  const validated = EnvSchema.parse(rawEnv);
+  const apiUrl = rawEnv.CF_KB_API_URL || rawEnv.API_URL || rawEnv.CLOUDFLARE_API_URL;
+  const apiToken = rawEnv.CF_KB_API_TOKEN || rawEnv.API_TOKEN || rawEnv.CLOUDFLARE_API_TOKEN;
+
+  if (!apiUrl || !apiToken) {
+    throw new Error(
+      "Missing required environment variables: CF_KB_API_URL and CF_KB_API_TOKEN must be set."
+    );
+  }
+
   return {
-    accountId: validated.CLOUDFLARE_ACCOUNT_ID,
-    apiToken: validated.CLOUDFLARE_API_TOKEN,
-    kvNamespaceId: validated.CLOUDFLARE_KV_NAMESPACE_ID,
-    vectorizeIndexName: validated.CLOUDFLARE_VECTORIZE_INDEX_NAME,
-    aiModel: validated.CLOUDFLARE_AI_MODEL
+    apiUrl: normalizeUrl(apiUrl),
+    apiToken: apiToken.trim()
   };
 }
 
@@ -75,7 +77,6 @@ export function sanitizeLogs(config: Config, env: Env): void {
     if (src.url && src.url.length > 3) {
       core.setSecret(src.url);
 
-      // Extract embedded tokens/passwords in URLs like https://user:token@github.com/...
       try {
         const parsedUrl = new URL(src.url);
         if (parsedUrl.password && parsedUrl.password.length > 3) {
@@ -85,7 +86,7 @@ export function sanitizeLogs(config: Config, env: Env): void {
           core.setSecret(parsedUrl.username);
         }
       } catch {
-        // Not a standard HTTP(S) URL, e.g. git SSH URL
+        // Not a standard HTTP(S) URL
       }
     }
 

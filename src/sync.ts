@@ -1,6 +1,6 @@
 import * as core from "@actions/core";
 import type { Config, Env, Source } from "./config.js";
-import { CloudflareClient, type SyncState, type VectorItem } from "./cloudflare.js";
+import { KbApiClient, type SyncState, type ChunkItem } from "./api.js";
 import { chunkText, generateVectorId, hasSecretTag } from "./chunker.js";
 import { loadGitDocuments } from "./sources/git.js";
 import { loadWebDocuments } from "./sources/web.js";
@@ -68,10 +68,10 @@ export function calculateDiff(
 export async function syncSource(
   source: Source,
   currentDocs: Map<string, DocumentItem>,
-  client: CloudflareClient,
+  client: KbApiClient,
   options: SyncOptions = {}
 ): Promise<SyncResult> {
-  const prevState = await client.getKVState(source.name);
+  const prevState = await client.getSyncState(source.name);
   const prevFiles = prevState.files || {};
 
   const diff = options.gitDiff ?? calculateDiff(prevState, currentDocs);
@@ -102,13 +102,7 @@ export async function syncSource(
 
   // 2. Prepare chunks for added and modified documents (filtering out #secret documents)
   const docsToIndex = [...diff.added, ...diff.modified];
-  const newChunks: Array<{
-    id: string;
-    text: string;
-    path: string;
-    title?: string;
-    chunkIndex: number;
-  }> = [];
+  const newChunks: ChunkItem[] = [];
 
   const nextFiles = { ...prevFiles };
 
@@ -146,40 +140,26 @@ export async function syncSource(
       newChunks.push({
         id: vectorId,
         text: chunk.text,
+        source: source.name,
         path: docPath,
         title: doc.title,
-        chunkIndex: chunk.chunkIndex
+        chunkIndex: chunk.chunkIndex,
+        url: source.type === "web" ? chunk.path : undefined
       });
     }
   }
 
-  // 3. Generate embeddings and upsert to Vectorize in batches
+  // 3. Upsert chunks via API (which handles Workers AI embedding & Vectorize upserting)
   if (newChunks.length > 0) {
-    const texts = newChunks.map((c) => c.text);
-    const embeddings = await client.generateEmbeddings(texts);
-
-    const vectorsToUpsert: VectorItem[] = newChunks.map((chunk, idx) => ({
-      id: chunk.id,
-      values: embeddings[idx],
-      metadata: {
-        text: chunk.text,
-        source: source.name,
-        path: chunk.path,
-        title: chunk.title,
-        chunkIndex: chunk.chunkIndex,
-        url: source.type === "web" ? chunk.path : undefined
-      }
-    }));
-
-    await client.upsertVectors(vectorsToUpsert);
+    await client.upsertChunks(newChunks);
   }
 
-  // 4. Save new state to KV
+  // 4. Save new state to KV via API
   const nextState: SyncState = {
     lastCommit: options.commit || prevState.lastCommit,
     files: nextFiles
   };
-  await client.saveKVState(source.name, nextState);
+  await client.saveSyncState(source.name, nextState);
 
   return {
     sourceName: source.name,
@@ -193,13 +173,13 @@ export async function syncSource(
 }
 
 export async function runSync(config: Config, env: Env): Promise<SyncResult[]> {
-  const client = new CloudflareClient(env);
+  const client = new KbApiClient(env);
   const results: SyncResult[] = [];
 
   for (const source of config) {
     core.info(`Starting sync for source: ${source.name} (${source.type})`);
 
-    const prevState = await client.getKVState(source.name);
+    const prevState = await client.getSyncState(source.name);
 
     let docs: Map<string, DocumentItem>;
     let gitDiff: DiffResult | undefined;

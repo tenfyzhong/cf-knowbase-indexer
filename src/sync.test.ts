@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { calculateDiff, syncSource, type DocumentItem } from "./sync.js";
-import type { CloudflareClient, SyncState } from "./cloudflare.js";
+import type { KbApiClient, SyncState } from "./api.js";
 import type { Source } from "./config.js";
 
 describe("sync diff and engine", () => {
@@ -27,7 +27,7 @@ describe("sync diff and engine", () => {
     expect(diff.unchanged).toEqual(["doc3.md"]);
   });
 
-  it("should orchestrate syncSource workflow correctly", async () => {
+  it("should orchestrate syncSource workflow correctly via KbApiClient", async () => {
     const source: Source = {
       name: "test-src",
       type: "git",
@@ -35,17 +35,16 @@ describe("sync diff and engine", () => {
     };
 
     const mockClient = {
-      getKVState: vi.fn().mockResolvedValue({
+      getSyncState: vi.fn().mockResolvedValue({
         files: {
           "old.md": { hash: "oldhash", chunkCount: 1 },
           "mod.md": { hash: "mod_old", chunkCount: 2 }
         }
       }),
-      saveKVState: vi.fn().mockResolvedValue(undefined),
-      generateEmbeddings: vi.fn().mockResolvedValue([[0.1, 0.2, 0.3]]),
-      upsertVectors: vi.fn().mockResolvedValue(undefined),
-      deleteVectors: vi.fn().mockResolvedValue(undefined)
-    } as unknown as CloudflareClient;
+      saveSyncState: vi.fn().mockResolvedValue(undefined),
+      upsertChunks: vi.fn().mockResolvedValue({ count: 2 }),
+      deleteVectors: vi.fn().mockResolvedValue({ count: 3 })
+    } as unknown as KbApiClient;
 
     const currentDocs = new Map<string, DocumentItem>([
       ["mod.md", { path: "mod.md", hash: "mod_new", content: "modified content" }],
@@ -66,10 +65,14 @@ describe("sync diff and engine", () => {
       "test-src:mod.md:1"
     ]);
 
-    // Embeddings generated for new & modified chunks
-    expect(mockClient.generateEmbeddings).toHaveBeenCalled();
-    expect(mockClient.upsertVectors).toHaveBeenCalled();
-    expect(mockClient.saveKVState).toHaveBeenCalled();
+    // Upsert chunks via API
+    expect(mockClient.upsertChunks).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({ path: "mod.md" }),
+        expect.objectContaining({ path: "new.md" })
+      ])
+    );
+    expect(mockClient.saveSyncState).toHaveBeenCalled();
   });
 
   it("should NOT vectorize documents containing #secret tag", async () => {
@@ -80,14 +83,13 @@ describe("sync diff and engine", () => {
     };
 
     const mockClient = {
-      getKVState: vi.fn().mockResolvedValue({
+      getSyncState: vi.fn().mockResolvedValue({
         files: {}
       }),
-      saveKVState: vi.fn().mockResolvedValue(undefined),
-      generateEmbeddings: vi.fn().mockResolvedValue([]),
-      upsertVectors: vi.fn().mockResolvedValue(undefined),
-      deleteVectors: vi.fn().mockResolvedValue(undefined)
-    } as unknown as CloudflareClient;
+      saveSyncState: vi.fn().mockResolvedValue(undefined),
+      upsertChunks: vi.fn().mockResolvedValue({ count: 1 }),
+      deleteVectors: vi.fn().mockResolvedValue({ count: 0 })
+    } as unknown as KbApiClient;
 
     const currentDocs = new Map<string, DocumentItem>([
       [
@@ -108,9 +110,6 @@ describe("sync diff and engine", () => {
       ]
     ]);
 
-    const generateEmbeddingsMock = mockClient.generateEmbeddings as unknown as { mockResolvedValue: (v: number[][]) => void };
-    generateEmbeddingsMock.mockResolvedValue([[0.1, 0.2, 0.3]]);
-
     const result = await syncSource(source, currentDocs, mockClient);
 
     expect(result.addedCount).toBe(2);
@@ -118,13 +117,12 @@ describe("sync diff and engine", () => {
     expect(result.skippedSecretCount).toBe(1);
 
     // Verify upsert was called with only public chunk
-    expect(mockClient.upsertVectors).toHaveBeenCalledWith(
-      expect.arrayContaining([
-        expect.objectContaining({
-          id: "obsidian:public-note.md:0"
-        })
-      ])
-    );
+    expect(mockClient.upsertChunks).toHaveBeenCalledWith([
+      expect.objectContaining({
+        id: "obsidian:public-note.md:0",
+        path: "public-note.md"
+      })
+    ]);
   });
 
   it("should delete existing vectors when a document is modified to include #secret tag", async () => {
@@ -135,16 +133,15 @@ describe("sync diff and engine", () => {
     };
 
     const mockClient = {
-      getKVState: vi.fn().mockResolvedValue({
+      getSyncState: vi.fn().mockResolvedValue({
         files: {
           "note.md": { hash: "old_hash", chunkCount: 2 }
         }
       }),
-      saveKVState: vi.fn().mockResolvedValue(undefined),
-      generateEmbeddings: vi.fn().mockResolvedValue([]),
-      upsertVectors: vi.fn().mockResolvedValue(undefined),
-      deleteVectors: vi.fn().mockResolvedValue(undefined)
-    } as unknown as CloudflareClient;
+      saveSyncState: vi.fn().mockResolvedValue(undefined),
+      upsertChunks: vi.fn().mockResolvedValue({ count: 0 }),
+      deleteVectors: vi.fn().mockResolvedValue({ count: 2 })
+    } as unknown as KbApiClient;
 
     const currentDocs = new Map<string, DocumentItem>([
       [
@@ -169,8 +166,7 @@ describe("sync diff and engine", () => {
       "obsidian:note.md:1"
     ]);
 
-    // No new embeddings or upserts
-    expect(mockClient.generateEmbeddings).not.toHaveBeenCalled();
-    expect(mockClient.upsertVectors).not.toHaveBeenCalled();
+    // No new upserts
+    expect(mockClient.upsertChunks).not.toHaveBeenCalled();
   });
 });

@@ -62,20 +62,25 @@ describe("config parser", () => {
     expect(() => parseConfig(rawConfig)).toThrow();
   });
 
-  it("should parse required cloudflare environment variables", () => {
+  it("should parse required API environment variables", () => {
     const envMock = {
-      CLOUDFLARE_ACCOUNT_ID: "acc_123456",
-      CLOUDFLARE_API_TOKEN: "token_secret",
-      CLOUDFLARE_KV_NAMESPACE_ID: "kv_namespace_789",
-      CLOUDFLARE_VECTORIZE_INDEX_NAME: "kb-index"
+      CF_KB_API_URL: "https://my-kb-api.workers.dev",
+      CF_KB_API_TOKEN: "token_secret_123"
     };
 
     const env = parseEnv(envMock);
-    expect(env.accountId).toBe("acc_123456");
-    expect(env.apiToken).toBe("token_secret");
-    expect(env.kvNamespaceId).toBe("kv_namespace_789");
-    expect(env.vectorizeIndexName).toBe("kb-index");
-    expect(env.aiModel).toBe("@cf/baai/bge-base-en-v1.5");
+    expect(env.apiUrl).toBe("https://my-kb-api.workers.dev");
+    expect(env.apiToken).toBe("token_secret_123");
+  });
+
+  it("should normalize api url by trimming trailing slashes", () => {
+    const envMock = {
+      CF_KB_API_URL: "https://my-kb-api.workers.dev///",
+      CF_KB_API_TOKEN: "token_secret_123"
+    };
+
+    const env = parseEnv(envMock);
+    expect(env.apiUrl).toBe("https://my-kb-api.workers.dev");
   });
 
   it("should throw if required env vars are missing", () => {
@@ -97,11 +102,8 @@ describe("config parser", () => {
     ];
 
     const env: Env = {
-      accountId: "acc_123456",
-      apiToken: "token_secret_value",
-      kvNamespaceId: "kv_123",
-      vectorizeIndexName: "kb-index",
-      aiModel: "@cf/baai/bge-base-en-v1.5"
+      apiUrl: "https://my-kb-api.workers.dev",
+      apiToken: "token_secret_value"
     };
 
     sanitizeLogs(config, env);
