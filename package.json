@@ -1,0 +1,27 @@
+{
+  "name": "cf-knowbase-indexer",
+  "version": "0.1.0",
+  "description": "Incremental knowledge base indexer communicating securely with cf-knowbase-api",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "start": "node dist/index.js",
+    "clear": "node dist/clear.js"
+  },
+  "dependencies": {
+    "@actions/core": "^1.11.1",
+    "cheerio": "^1.0.0",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.5",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.7"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
