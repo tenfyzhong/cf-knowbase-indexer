@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeHash, chunkText, extractHtmlText, generateVectorId } from "./chunker.js";
+import { computeHash, chunkText, extractHtmlText, generateVectorId, hasSecretTag } from "./chunker.js";
 
 describe("chunker and hashing", () => {
   it("should compute consistent sha256 hashes", () => {
@@ -74,5 +74,66 @@ describe("chunker and hashing", () => {
   it("should generate deterministic and safe vector IDs", () => {
     const id = generateVectorId("obsidian", "folder/sub-folder/my note.md", 0);
     expect(id).toBe("obsidian:folder/sub-folder/my_note.md:0");
+  });
+
+  describe("hasSecretTag", () => {
+    it("should detect #secret in YAML frontmatter list", () => {
+      const doc = `---
+title: My Private Notes
+tags:
+  - personal
+  - secret
+  - work
+---
+Content of the note.`;
+      expect(hasSecretTag(doc)).toBe(true);
+    });
+
+    it("should detect #secret in YAML frontmatter array format", () => {
+      const doc = `---
+tags: [architecture, secret, obsidian]
+---
+Some note content.`;
+      expect(hasSecretTag(doc)).toBe(true);
+    });
+
+    it("should detect #secret in YAML frontmatter single tag", () => {
+      const doc1 = `---
+tags: secret
+---
+Content.`;
+      const doc2 = `---
+tag: secret
+---
+Content.`;
+      expect(hasSecretTag(doc1)).toBe(true);
+      expect(hasSecretTag(doc2)).toBe(true);
+    });
+
+    it("should detect #secret in Markdown body text", () => {
+      const doc1 = "This is a note containing an inline tag #secret for confidentiality.";
+      const doc2 = "# Obsidian Note\n\nSome sensitive notes here.\n\n#secret";
+      const doc3 = "Note with nested tag #secret/finance in body.";
+      expect(hasSecretTag(doc1)).toBe(true);
+      expect(hasSecretTag(doc2)).toBe(true);
+      expect(hasSecretTag(doc3)).toBe(true);
+    });
+
+    it("should NOT treat markdown headings like # Secret Title as #secret tag", () => {
+      const doc = `# Secret Title
+
+This is a public note explaining secrets in general without any tag.`;
+      expect(hasSecretTag(doc)).toBe(false);
+    });
+
+    it("should NOT flag ordinary notes without secret tag", () => {
+      const doc = `---
+title: Architecture Guide
+tags: [public, docs]
+---
+# Normal Heading
+Just a regular guide with word secretively or secrecy in plain text.`;
+      expect(hasSecretTag(doc)).toBe(false);
+    });
   });
 });

@@ -18,19 +18,22 @@ describe("CloudflareClient", () => {
     vi.restoreAllMocks();
   });
 
-  it("should get KV sync state, returning empty object on 404", async () => {
+  it("should get KV sync state, returning empty files object on 404", async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       status: 404,
       ok: false
     });
 
     const state = await client.getKVState("my_source");
-    expect(state).toEqual({});
+    expect(state).toEqual({ files: {} });
   });
 
   it("should parse valid KV sync state", async () => {
     const mockState = {
-      "docs/readme.md": { hash: "hash123", chunkCount: 2 }
+      lastCommit: "commit_abc",
+      files: {
+        "docs/readme.md": { hash: "hash123", chunkCount: 2 }
+      }
     };
 
     globalThis.fetch = vi.fn().mockResolvedValue({
@@ -51,7 +54,10 @@ describe("CloudflareClient", () => {
     globalThis.fetch = fetchMock;
 
     const mockState = {
-      "docs/readme.md": { hash: "hash123", chunkCount: 2 }
+      lastCommit: "commit_abc",
+      files: {
+        "docs/readme.md": { hash: "hash123", chunkCount: 2 }
+      }
     };
 
     await client.saveKVState("my_source", mockState);
@@ -106,7 +112,8 @@ describe("CloudflareClient", () => {
         metadata: {
           text: "sample text",
           source: "source",
-          path: "doc.md"
+          path: "doc.md",
+          chunkIndex: 0
         }
       }
     ];

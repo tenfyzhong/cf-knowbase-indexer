@@ -5,11 +5,11 @@ Automated incremental knowledge base indexer for personal notes, repositories, a
 ## Overview
 
 `cf-kb-indexer` runs periodically via GitHub Actions (or locally) to synchronize documents from multiple sources into Cloudflare Vectorize:
-- **Private & Public Git Repositories**: Clones Markdown and text files (e.g. Obsidian vaults, documentation).
+- **Private & Public Git Repositories**: Incremental indexing based on Git commit diffs (`git diff <lastCommit> HEAD`).
 - **Websites & Blogs**: Recursively crawls web pages and extracts clean content.
-- **Incremental Sync**: Tracks document content hashes in Cloudflare KV (`sync_state:<source>`), only embedding and updating added or modified documents while removing deleted documents' vectors from Vectorize.
+- **Privacy Filter (`#secret`)**: Automatically skips Obsidian and Markdown notes tagged with `#secret` (in YAML frontmatter or inline body text), preventing sensitive notes from being vectorized.
+- **Incremental Sync**: Tracks Git commit SHAs and document content hashes in Cloudflare KV (`sync_state:<source>`), only embedding added/modified documents and deleting obsolete vectors.
 - **Log Sanitization**: Uses GitHub Actions secret masking (`@actions/core.setSecret`) to prevent leakage of private URLs, tokens, and SSH secrets into action execution logs.
-
 ## Architecture
 
 ```

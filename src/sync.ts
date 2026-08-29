@@ -1,7 +1,7 @@
 import * as core from "@actions/core";
 import type { Config, Env, Source } from "./config.js";
 import { CloudflareClient, type SyncState, type VectorItem } from "./cloudflare.js";
-import { chunkText, generateVectorId } from "./chunker.js";
+import { chunkText, generateVectorId, hasSecretTag } from "./chunker.js";
 import { loadGitDocuments } from "./sources/git.js";
 import { loadWebDocuments } from "./sources/web.js";
 
@@ -26,6 +26,12 @@ export interface SyncResult {
   deletedCount: number;
   unchangedCount: number;
   totalChunks: number;
+  skippedSecretCount: number;
+}
+
+export interface SyncOptions {
+  gitDiff?: DiffResult;
+  commit?: string;
 }
 
 export function calculateDiff(
@@ -37,8 +43,10 @@ export function calculateDiff(
   const unchanged: string[] = [];
   const deleted: string[] = [];
 
+  const prevFiles = prevState.files || {};
+
   for (const [path, doc] of currentDocs.entries()) {
-    const prev = prevState[path];
+    const prev = prevFiles[path];
     if (!prev) {
       added.push(path);
     } else if (prev.hash !== doc.hash) {
@@ -48,7 +56,7 @@ export function calculateDiff(
     }
   }
 
-  for (const prevPath of Object.keys(prevState)) {
+  for (const prevPath of Object.keys(prevFiles)) {
     if (!currentDocs.has(prevPath)) {
       deleted.push(prevPath);
     }
@@ -60,16 +68,19 @@ export function calculateDiff(
 export async function syncSource(
   source: Source,
   currentDocs: Map<string, DocumentItem>,
-  client: CloudflareClient
+  client: CloudflareClient,
+  options: SyncOptions = {}
 ): Promise<SyncResult> {
   const prevState = await client.getKVState(source.name);
-  const diff = calculateDiff(prevState, currentDocs);
+  const prevFiles = prevState.files || {};
+
+  const diff = options.gitDiff ?? calculateDiff(prevState, currentDocs);
 
   // 1. Delete outdated vectors for deleted and modified items
   const vectorIdsToDelete: string[] = [];
   for (const deletedPath of diff.deleted) {
-    const prevItem = prevState[deletedPath];
-    if (prevItem) {
+    const prevItem = prevFiles[deletedPath];
+    if (prevItem && prevItem.chunkCount > 0) {
       for (let i = 0; i < prevItem.chunkCount; i++) {
         vectorIdsToDelete.push(generateVectorId(source.name, deletedPath, i));
       }
@@ -77,8 +88,8 @@ export async function syncSource(
   }
 
   for (const modifiedPath of diff.modified) {
-    const prevItem = prevState[modifiedPath];
-    if (prevItem) {
+    const prevItem = prevFiles[modifiedPath];
+    if (prevItem && prevItem.chunkCount > 0) {
       for (let i = 0; i < prevItem.chunkCount; i++) {
         vectorIdsToDelete.push(generateVectorId(source.name, modifiedPath, i));
       }
@@ -89,7 +100,7 @@ export async function syncSource(
     await client.deleteVectors(vectorIdsToDelete);
   }
 
-  // 2. Prepare chunks for added and modified documents
+  // 2. Prepare chunks for added and modified documents (filtering out #secret documents)
   const docsToIndex = [...diff.added, ...diff.modified];
   const newChunks: Array<{
     id: string;
@@ -99,21 +110,35 @@ export async function syncSource(
     chunkIndex: number;
   }> = [];
 
-  const nextState: SyncState = {};
+  const nextFiles = { ...prevFiles };
 
-  // Copy unchanged state
-  for (const unchangedPath of diff.unchanged) {
-    nextState[unchangedPath] = prevState[unchangedPath];
+  // Remove deleted from state
+  for (const deletedPath of diff.deleted) {
+    delete nextFiles[deletedPath];
   }
+
+  let skippedSecretCount = 0;
 
   for (const docPath of docsToIndex) {
     const doc = currentDocs.get(docPath);
     if (!doc) continue;
 
+    const isSecret = hasSecretTag(doc.content);
+    if (isSecret) {
+      skippedSecretCount++;
+      nextFiles[docPath] = {
+        hash: doc.hash,
+        chunkCount: 0,
+        isSecret: true
+      };
+      continue;
+    }
+
     const chunks = chunkText(doc.content);
-    nextState[docPath] = {
+    nextFiles[docPath] = {
       hash: doc.hash,
-      chunkCount: chunks.length
+      chunkCount: chunks.length,
+      isSecret: false
     };
 
     for (const chunk of chunks) {
@@ -150,6 +175,10 @@ export async function syncSource(
   }
 
   // 4. Save new state to KV
+  const nextState: SyncState = {
+    lastCommit: options.commit || prevState.lastCommit,
+    files: nextFiles
+  };
   await client.saveKVState(source.name, nextState);
 
   return {
@@ -158,7 +187,8 @@ export async function syncSource(
     modifiedCount: diff.modified.length,
     deletedCount: diff.deleted.length,
     unchangedCount: diff.unchanged.length,
-    totalChunks: newChunks.length
+    totalChunks: newChunks.length,
+    skippedSecretCount
   };
 }
 
@@ -169,19 +199,32 @@ export async function runSync(config: Config, env: Env): Promise<SyncResult[]> {
   for (const source of config) {
     core.info(`Starting sync for source: ${source.name} (${source.type})`);
 
+    const prevState = await client.getKVState(source.name);
+
     let docs: Map<string, DocumentItem>;
+    let gitDiff: DiffResult | undefined;
+    let commit: string | undefined;
+
     if (source.type === "git") {
-      docs = await loadGitDocuments(source);
+      const gitResult = await loadGitDocuments(source, prevState.lastCommit);
+      docs = gitResult.docs;
+      gitDiff = gitResult.diff;
+      commit = gitResult.currentCommit;
+      core.info(
+        `Git source ${source.name} at commit ${commit}${
+          gitDiff ? ` (incremental diff from ${prevState.lastCommit})` : " (full scan)"
+        }`
+      );
     } else {
       docs = await loadWebDocuments(source);
     }
 
     core.info(`Loaded ${docs.size} documents from ${source.name}`);
-    const result = await syncSource(source, docs, client);
+    const result = await syncSource(source, docs, client, { gitDiff, commit });
     results.push(result);
 
     core.info(
-      `Source ${source.name} synced: +${result.addedCount} ~${result.modifiedCount} -${result.deletedCount} =${result.unchangedCount} (${result.totalChunks} chunks indexed)`
+      `Source ${source.name} synced: +${result.addedCount} ~${result.modifiedCount} -${result.deletedCount} =${result.unchangedCount} (${result.totalChunks} chunks indexed, ${result.skippedSecretCount} secrets skipped)`
     );
   }
 

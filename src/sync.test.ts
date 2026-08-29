@@ -1,14 +1,16 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { calculateDiff, syncSource, type DocumentItem } from "./sync.js";
-import type { CloudflareClient } from "./cloudflare.js";
+import type { CloudflareClient, SyncState } from "./cloudflare.js";
 import type { Source } from "./config.js";
 
 describe("sync diff and engine", () => {
   it("should accurately compute added, modified, deleted and unchanged files", () => {
-    const prevState = {
-      "doc1.md": { hash: "hash1", chunkCount: 1 },
-      "doc2.md": { hash: "hash2_old", chunkCount: 2 },
-      "doc3.md": { hash: "hash3", chunkCount: 1 }
+    const prevState: SyncState = {
+      files: {
+        "doc1.md": { hash: "hash1", chunkCount: 1 },
+        "doc2.md": { hash: "hash2_old", chunkCount: 2 },
+        "doc3.md": { hash: "hash3", chunkCount: 1 }
+      }
     };
 
     const currentDocs = new Map<string, DocumentItem>([
@@ -34,8 +36,10 @@ describe("sync diff and engine", () => {
 
     const mockClient = {
       getKVState: vi.fn().mockResolvedValue({
-        "old.md": { hash: "oldhash", chunkCount: 1 },
-        "mod.md": { hash: "mod_old", chunkCount: 2 }
+        files: {
+          "old.md": { hash: "oldhash", chunkCount: 1 },
+          "mod.md": { hash: "mod_old", chunkCount: 2 }
+        }
       }),
       saveKVState: vi.fn().mockResolvedValue(undefined),
       generateEmbeddings: vi.fn().mockResolvedValue([[0.1, 0.2, 0.3]]),
@@ -66,5 +70,107 @@ describe("sync diff and engine", () => {
     expect(mockClient.generateEmbeddings).toHaveBeenCalled();
     expect(mockClient.upsertVectors).toHaveBeenCalled();
     expect(mockClient.saveKVState).toHaveBeenCalled();
+  });
+
+  it("should NOT vectorize documents containing #secret tag", async () => {
+    const source: Source = {
+      name: "obsidian",
+      type: "git",
+      url: "git@github.com:user/vault.git"
+    };
+
+    const mockClient = {
+      getKVState: vi.fn().mockResolvedValue({
+        files: {}
+      }),
+      saveKVState: vi.fn().mockResolvedValue(undefined),
+      generateEmbeddings: vi.fn().mockResolvedValue([]),
+      upsertVectors: vi.fn().mockResolvedValue(undefined),
+      deleteVectors: vi.fn().mockResolvedValue(undefined)
+    } as unknown as CloudflareClient;
+
+    const currentDocs = new Map<string, DocumentItem>([
+      [
+        "secret-note.md",
+        {
+          path: "secret-note.md",
+          hash: "secret_hash",
+          content: "---\ntags: [secret]\n---\nConfidential notes."
+        }
+      ],
+      [
+        "public-note.md",
+        {
+          path: "public-note.md",
+          hash: "public_hash",
+          content: "# Public Guide\n\nPublicly available knowledge."
+        }
+      ]
+    ]);
+
+    const generateEmbeddingsMock = mockClient.generateEmbeddings as unknown as { mockResolvedValue: (v: number[][]) => void };
+    generateEmbeddingsMock.mockResolvedValue([[0.1, 0.2, 0.3]]);
+
+    const result = await syncSource(source, currentDocs, mockClient);
+
+    expect(result.addedCount).toBe(2);
+    expect(result.totalChunks).toBe(1); // Only 1 public chunk vectorized
+    expect(result.skippedSecretCount).toBe(1);
+
+    // Verify upsert was called with only public chunk
+    expect(mockClient.upsertVectors).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "obsidian:public-note.md:0"
+        })
+      ])
+    );
+  });
+
+  it("should delete existing vectors when a document is modified to include #secret tag", async () => {
+    const source: Source = {
+      name: "obsidian",
+      type: "git",
+      url: "git@github.com:user/vault.git"
+    };
+
+    const mockClient = {
+      getKVState: vi.fn().mockResolvedValue({
+        files: {
+          "note.md": { hash: "old_hash", chunkCount: 2 }
+        }
+      }),
+      saveKVState: vi.fn().mockResolvedValue(undefined),
+      generateEmbeddings: vi.fn().mockResolvedValue([]),
+      upsertVectors: vi.fn().mockResolvedValue(undefined),
+      deleteVectors: vi.fn().mockResolvedValue(undefined)
+    } as unknown as CloudflareClient;
+
+    const currentDocs = new Map<string, DocumentItem>([
+      [
+        "note.md",
+        {
+          path: "note.md",
+          hash: "new_secret_hash",
+          content: "Now this note is #secret and sensitive."
+        }
+      ]
+    ]);
+
+    const result = await syncSource(source, currentDocs, mockClient);
+
+    expect(result.modifiedCount).toBe(1);
+    expect(result.totalChunks).toBe(0);
+    expect(result.skippedSecretCount).toBe(1);
+
+    // Old 2 vectors must be deleted
+    expect(mockClient.deleteVectors).toHaveBeenCalledWith([
+      "obsidian:note.md:0",
+      "obsidian:note.md:1"
+    ]);
+
+    // No new embeddings or upserts
+    expect(mockClient.generateEmbeddings).not.toHaveBeenCalled();
+    expect(mockClient.upsertVectors).not.toHaveBeenCalled();
   });
 });

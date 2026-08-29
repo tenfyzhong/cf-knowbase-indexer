@@ -16,9 +16,13 @@ export interface VectorItem {
 export interface SyncStateItem {
   hash: string;
   chunkCount: number;
+  isSecret?: boolean;
 }
 
-export type SyncState = Record<string, SyncStateItem>;
+export interface SyncState {
+  lastCommit?: string;
+  files: Record<string, SyncStateItem>;
+}
 
 export class CloudflareClient {
   private readonly baseUrl = "https://api.cloudflare.com/client/v4";
@@ -41,7 +45,7 @@ export class CloudflareClient {
     });
 
     if (res.status === 404) {
-      return {};
+      return { files: {} };
     }
 
     if (!res.ok) {
@@ -49,7 +53,22 @@ export class CloudflareClient {
       throw new Error(`Failed to get KV state for ${sourceName}: ${res.status} ${errorText}`);
     }
 
-    return (await res.json()) as SyncState;
+    const data = (await res.json()) as unknown;
+    if (data && typeof data === "object" && !Array.isArray(data)) {
+      if ("files" in data) {
+        const withFiles = data as { lastCommit?: string; files?: Record<string, SyncStateItem> };
+        return {
+          lastCommit: withFiles.lastCommit,
+          files: withFiles.files || {}
+        };
+      }
+      // Legacy format where root object keys were file paths
+      return {
+        files: data as Record<string, SyncStateItem>
+      };
+    }
+
+    return { files: {} };
   }
 
   async saveKVState(sourceName: string, state: SyncState): Promise<void> {

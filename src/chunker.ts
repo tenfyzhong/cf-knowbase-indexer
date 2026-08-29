@@ -22,6 +22,52 @@ export function generateVectorId(sourceName: string, filePath: string, chunkInde
   return `${sourceName}:${sanitizedPath}:${chunkIndex}`;
 }
 
+export function hasSecretTag(content: string): boolean {
+  if (!content) return false;
+
+  // 1. Check YAML frontmatter
+  const frontmatterMatch = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  if (frontmatterMatch) {
+    const frontmatter = frontmatterMatch[1];
+
+    // Check tags: [..., secret, ...] or tag: [..., secret, ...]
+    const arrayMatch = frontmatter.match(/tags?\s*:\s*\[([\s\S]*?)\]/i);
+    if (arrayMatch) {
+      const items = arrayMatch[1].split(",").map((s) => s.trim().replace(/^['"#]+|['"]+$/g, ""));
+      if (items.some((item) => item.toLowerCase() === "secret" || item.toLowerCase().startsWith("secret/"))) {
+        return true;
+      }
+    }
+
+    // Check tags: \n - secret
+    const listMatches = frontmatter.matchAll(/^\s*-\s*['"#]?([a-zA-Z0-9_\-/]+)['"]?/gim);
+    for (const match of listMatches) {
+      const tag = match[1].toLowerCase();
+      if (tag === "secret" || tag.startsWith("secret/")) {
+        return true;
+      }
+    }
+
+    // Check tags: secret or tag: secret
+    const singleMatch = frontmatter.match(/^tags?\s*:\s*['"#]?([a-zA-Z0-9_\-/]+)['"]?\s*$/im);
+    if (singleMatch) {
+      const tag = singleMatch[1].toLowerCase();
+      if (tag === "secret" || tag.startsWith("secret/")) {
+        return true;
+      }
+    }
+  }
+
+  // 2. Check Markdown body (remove code blocks first)
+  const bodyWithoutCode = content
+    .replace(/```[\s\S]*?```/g, "")
+    .replace(/`[^`\n]+`/g, "");
+
+  // Match #secret or #secret/subtag (ensuring word boundaries and not markdown heading like "# Secret")
+  const tagRegex = /(?:^|\s)#(secret(?:\/[a-zA-Z0-9_\-]+)?)(?=\s|$|[.,;:!?()\[\]{}])/i;
+  return tagRegex.test(bodyWithoutCode);
+}
+
 export function extractHtmlText(html: string): { title: string; text: string } {
   const $ = cheerio.load(html);
 
