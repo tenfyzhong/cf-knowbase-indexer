@@ -40,7 +40,7 @@ Configure the following GitHub Action Secrets (or `.env` file for local runs):
 | Secret Name | Description | Required |
 |---|---|---|
 | `CONFIG_JSON` | JSON array configuring data sources | Yes |
-| `CF_KNOWBASE_API_URL` | URL of the deployed `cf-knowbase-api` worker (e.g. `https://cf-knowbase-api.<subdomain>.workers.dev`) | Yes |
+| `CF_KNOWBASE_API_URL` | URL of the deployed `cf-knowbase-api` worker (`https://knowbase-api.tenfy.cn`) | Yes |
 | `CF_KNOWBASE_API_TOKEN` | Bearer API Token shared with `cf-knowbase-api` | Yes |
 | `SSH_KEY` | Deploy/Private key with read access to private repositories | Optional |
 
