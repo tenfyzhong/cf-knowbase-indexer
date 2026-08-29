@@ -144,7 +144,7 @@ export async function syncSource(
         path: docPath,
         title: doc.title,
         chunkIndex: chunk.chunkIndex,
-        url: source.type === "web" ? chunk.path : undefined
+        url: source.type === "web" ? docPath : undefined
       });
     }
   }
