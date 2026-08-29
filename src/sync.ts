@@ -1,6 +1,6 @@
 import * as core from "@actions/core";
 import type { Config, Env, Source } from "./config.js";
-import { KbApiClient, type SyncState, type ChunkItem } from "./api.js";
+import { KnowbaseApiClient, type SyncState, type ChunkItem } from "./api.js";
 import { chunkText, generateVectorId, hasConfidentialTag } from "./chunker.js";
 import { loadGitDocuments } from "./sources/git.js";
 import { loadWebDocuments } from "./sources/web.js";
@@ -68,7 +68,7 @@ export function calculateDiff(
 export async function syncSource(
   source: Source,
   currentDocs: Map<string, DocumentItem>,
-  client: KbApiClient,
+  client: KnowbaseApiClient,
   options: SyncOptions = {}
 ): Promise<SyncResult> {
   const prevState = await client.getSyncState(source.name);
@@ -173,7 +173,7 @@ export async function syncSource(
 }
 
 export async function runSync(config: Config, env: Env): Promise<SyncResult[]> {
-  const client = new KbApiClient(env);
+  const client = new KnowbaseApiClient(env);
   const results: SyncResult[] = [];
 
   for (const source of config) {

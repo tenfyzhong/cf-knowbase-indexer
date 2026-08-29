@@ -102,7 +102,7 @@ export async function loadGitDocuments(
   source: GitSource,
   lastCommit?: string
 ): Promise<GitLoadResult> {
-  const tempDir = path.join(os.tmpdir(), `cf-kb-git-${crypto.randomUUID()}`);
+  const tempDir = path.join(os.tmpdir(), `cf-knowbase-git-${crypto.randomUUID()}`);
   const docs = new Map<string, DocumentItem>();
 
   try {

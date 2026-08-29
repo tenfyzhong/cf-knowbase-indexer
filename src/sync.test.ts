@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { calculateDiff, syncSource, type DocumentItem } from "./sync.js";
-import type { KbApiClient, SyncState } from "./api.js";
+import type { KnowbaseApiClient, SyncState } from "./api.js";
 import type { Source } from "./config.js";
 
 describe("sync diff and engine", () => {
@@ -27,7 +27,7 @@ describe("sync diff and engine", () => {
     expect(diff.unchanged).toEqual(["doc3.md"]);
   });
 
-  it("should orchestrate syncSource workflow correctly via KbApiClient", async () => {
+  it("should orchestrate syncSource workflow correctly via KnowbaseApiClient", async () => {
     const source: Source = {
       name: "test-src",
       type: "git",
@@ -44,7 +44,7 @@ describe("sync diff and engine", () => {
       saveSyncState: vi.fn().mockResolvedValue(undefined),
       upsertChunks: vi.fn().mockResolvedValue({ count: 2 }),
       deleteVectors: vi.fn().mockResolvedValue({ count: 3 })
-    } as unknown as KbApiClient;
+    } as unknown as KnowbaseApiClient;
 
     const currentDocs = new Map<string, DocumentItem>([
       ["mod.md", { path: "mod.md", hash: "mod_new", content: "modified content" }],
@@ -87,7 +87,7 @@ describe("sync diff and engine", () => {
       saveSyncState: vi.fn().mockResolvedValue(undefined),
       upsertChunks: vi.fn().mockResolvedValue({ count: 1 }),
       deleteVectors: vi.fn().mockResolvedValue({ count: 0 })
-    } as unknown as KbApiClient;
+    } as unknown as KnowbaseApiClient;
 
     const currentDocs = new Map<string, DocumentItem>([
       [
@@ -138,7 +138,7 @@ describe("sync diff and engine", () => {
       saveSyncState: vi.fn().mockResolvedValue(undefined),
       upsertChunks: vi.fn().mockResolvedValue({ count: 0 }),
       deleteVectors: vi.fn().mockResolvedValue({ count: 2 })
-    } as unknown as KbApiClient;
+    } as unknown as KnowbaseApiClient;
 
     const currentDocs = new Map<string, DocumentItem>([
       [

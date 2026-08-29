@@ -21,7 +21,7 @@ export interface SyncState {
   files: Record<string, SyncStateItem>;
 }
 
-export class KbApiClient {
+export class KnowbaseApiClient {
   constructor(private readonly env: Env) {}
 
   private get authHeaders(): Record<string, string> {

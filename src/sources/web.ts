@@ -24,7 +24,7 @@ export async function loadWebDocuments(source: WebSource): Promise<Map<string, D
     try {
       const res = await fetch(normalizedUrl, {
         headers: {
-          "User-Agent": "Mozilla/5.0 (compatible; CF-KB-Indexer/1.0)",
+          "User-Agent": "Mozilla/5.0 (compatible; CF-Knowbase-Indexer/1.0)",
           ...(source.headers || {})
         }
       });

@@ -25,7 +25,7 @@ async function main(): Promise<void> {
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    core.setFailed(`KB Indexer failed: ${message}`);
+    core.setFailed(`Knowbase Indexer failed: ${message}`);
     process.exit(1);
   }
 }

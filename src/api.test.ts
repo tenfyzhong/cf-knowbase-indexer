@@ -1,17 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { KbApiClient } from "./api.js";
+import { KnowbaseApiClient } from "./api.js";
 import type { Env } from "./config.js";
 
-describe("KbApiClient", () => {
+describe("KnowbaseApiClient", () => {
   const env: Env = {
-    apiUrl: "https://my-kb-api.workers.dev",
+    apiUrl: "https://knowbase-api.tenfy.cn",
     apiToken: "valid_secret_token"
   };
 
-  let client: KbApiClient;
+  let client: KnowbaseApiClient;
 
   beforeEach(() => {
-    client = new KbApiClient(env);
+    client = new KnowbaseApiClient(env);
     vi.restoreAllMocks();
   });
 
@@ -32,7 +32,7 @@ describe("KbApiClient", () => {
     const state = await client.getSyncState("obsidian");
     expect(state).toEqual(mockState);
     expect(globalThis.fetch).toHaveBeenCalledWith(
-      "https://my-kb-api.workers.dev/sync-state/obsidian",
+      "https://knowbase-api.tenfy.cn/sync-state/obsidian",
       expect.objectContaining({
         headers: expect.objectContaining({
           Authorization: "Bearer valid_secret_token"
@@ -58,7 +58,7 @@ describe("KbApiClient", () => {
 
     await client.saveSyncState("obsidian", mockState);
     expect(fetchMock).toHaveBeenCalledWith(
-      "https://my-kb-api.workers.dev/sync-state/obsidian",
+      "https://knowbase-api.tenfy.cn/sync-state/obsidian",
       expect.objectContaining({
         method: "PUT",
         headers: expect.objectContaining({
@@ -91,7 +91,7 @@ describe("KbApiClient", () => {
     const res = await client.upsertChunks(chunks);
     expect(res.count).toBe(1);
     expect(fetchMock).toHaveBeenCalledWith(
-      "https://my-kb-api.workers.dev/vectors/upsert",
+      "https://knowbase-api.tenfy.cn/vectors/upsert",
       expect.objectContaining({
         method: "POST",
         headers: expect.objectContaining({
@@ -115,7 +115,7 @@ describe("KbApiClient", () => {
     const res = await client.deleteVectors(ids);
     expect(res.count).toBe(2);
     expect(fetchMock).toHaveBeenCalledWith(
-      "https://my-kb-api.workers.dev/vectors/delete",
+      "https://knowbase-api.tenfy.cn/vectors/delete",
       expect.objectContaining({
         method: "POST",
         headers: expect.objectContaining({
