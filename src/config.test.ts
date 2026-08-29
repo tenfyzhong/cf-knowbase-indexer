@@ -64,23 +64,23 @@ describe("config parser", () => {
 
   it("should parse required API environment variables", () => {
     const envMock = {
-      CF_KB_API_URL: "https://my-kb-api.workers.dev",
-      CF_KB_API_TOKEN: "token_secret_123"
+      CF_KNOWBASE_API_URL: "https://my-knowbase-api.workers.dev",
+      CF_KNOWBASE_API_TOKEN: "token_secret_123"
     };
 
     const env = parseEnv(envMock);
-    expect(env.apiUrl).toBe("https://my-kb-api.workers.dev");
+    expect(env.apiUrl).toBe("https://my-knowbase-api.workers.dev");
     expect(env.apiToken).toBe("token_secret_123");
   });
 
   it("should normalize api url by trimming trailing slashes", () => {
     const envMock = {
-      CF_KB_API_URL: "https://my-kb-api.workers.dev///",
-      CF_KB_API_TOKEN: "token_secret_123"
+      CF_KNOWBASE_API_URL: "https://my-knowbase-api.workers.dev///",
+      CF_KNOWBASE_API_TOKEN: "token_secret_123"
     };
 
     const env = parseEnv(envMock);
-    expect(env.apiUrl).toBe("https://my-kb-api.workers.dev");
+    expect(env.apiUrl).toBe("https://my-knowbase-api.workers.dev");
   });
 
   it("should throw if required env vars are missing", () => {
@@ -102,7 +102,7 @@ describe("config parser", () => {
     ];
 
     const env: Env = {
-      apiUrl: "https://my-kb-api.workers.dev",
+      apiUrl: "https://my-knowbase-api.workers.dev",
       apiToken: "token_secret_value"
     };
 

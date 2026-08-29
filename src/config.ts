@@ -53,15 +53,22 @@ export function parseConfig(rawJson: string): Config {
 }
 
 export function parseEnv(rawEnv: Record<string, string | undefined> = process.env): Env {
-  const apiUrl = rawEnv.CF_KB_API_URL || rawEnv.API_URL || rawEnv.CLOUDFLARE_API_URL;
-  const apiToken = rawEnv.CF_KB_API_TOKEN || rawEnv.API_TOKEN || rawEnv.CLOUDFLARE_API_TOKEN;
+  const apiUrl =
+    rawEnv.CF_KNOWBASE_API_URL ||
+    rawEnv.CF_KB_API_URL ||
+    rawEnv.KNOWBASE_API_URL ||
+    rawEnv.API_URL;
+  const apiToken =
+    rawEnv.CF_KNOWBASE_API_TOKEN ||
+    rawEnv.CF_KB_API_TOKEN ||
+    rawEnv.KNOWBASE_API_TOKEN ||
+    rawEnv.API_TOKEN;
 
   if (!apiUrl || !apiToken) {
     throw new Error(
-      "Missing required environment variables: CF_KB_API_URL and CF_KB_API_TOKEN must be set."
+      "Missing required environment variables: CF_KNOWBASE_API_URL and CF_KNOWBASE_API_TOKEN must be set."
     );
   }
-
   return {
     apiUrl: normalizeUrl(apiUrl),
     apiToken: apiToken.trim()

@@ -1,7 +1,7 @@
 {
-  "name": "cf-kb-indexer",
+  "name": "cf-knowbase-indexer",
   "version": "0.1.0",
-  "description": "Incremental knowledge base indexer for Cloudflare Vectorize and KV",
+  "description": "Incremental knowledge base indexer communicating securely with cf-knowbase-api",
   "main": "dist/index.js",
   "type": "module",
   "scripts": {

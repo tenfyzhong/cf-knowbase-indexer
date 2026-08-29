@@ -43,6 +43,6 @@ jobs:
       - name: Run Knowledge Base Sync
         env:
           CONFIG_JSON: ${{ secrets.CONFIG_JSON }}
-          CF_KB_API_URL: ${{ secrets.CF_KB_API_URL }}
-          CF_KB_API_TOKEN: ${{ secrets.CF_KB_API_TOKEN }}
+          CF_KNOWBASE_API_URL: ${{ secrets.CF_KNOWBASE_API_URL || secrets.CF_KB_API_URL }}
+          CF_KNOWBASE_API_TOKEN: ${{ secrets.CF_KNOWBASE_API_TOKEN || secrets.CF_KB_API_TOKEN }}
         run: node dist/index.js
