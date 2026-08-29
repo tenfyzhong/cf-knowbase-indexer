@@ -58,14 +58,12 @@ describe("sync diff and engine", () => {
     expect(result.deletedCount).toBe(1);
     expect(result.unchangedCount).toBe(0);
 
-    // Old vectors from 'old.md' (1 chunk) and 'mod.md' (2 chunks) must be deleted
     expect(mockClient.deleteVectors).toHaveBeenCalledWith([
       "test-src:old.md:0",
       "test-src:mod.md:0",
       "test-src:mod.md:1"
     ]);
 
-    // Upsert chunks via API
     expect(mockClient.upsertChunks).toHaveBeenCalledWith(
       expect.arrayContaining([
         expect.objectContaining({ path: "mod.md" }),
@@ -75,7 +73,7 @@ describe("sync diff and engine", () => {
     expect(mockClient.saveSyncState).toHaveBeenCalled();
   });
 
-  it("should NOT vectorize documents containing #secret tag", async () => {
+  it("should NOT vectorize documents containing #confidential tag", async () => {
     const source: Source = {
       name: "obsidian",
       type: "git",
@@ -93,11 +91,11 @@ describe("sync diff and engine", () => {
 
     const currentDocs = new Map<string, DocumentItem>([
       [
-        "secret-note.md",
+        "confidential-note.md",
         {
-          path: "secret-note.md",
-          hash: "secret_hash",
-          content: "---\ntags: [secret]\n---\nConfidential notes."
+          path: "confidential-note.md",
+          hash: "confidential_hash",
+          content: "---\ntags: [confidential]\n---\nConfidential notes."
         }
       ],
       [
@@ -113,10 +111,9 @@ describe("sync diff and engine", () => {
     const result = await syncSource(source, currentDocs, mockClient);
 
     expect(result.addedCount).toBe(2);
-    expect(result.totalChunks).toBe(1); // Only 1 public chunk vectorized
-    expect(result.skippedSecretCount).toBe(1);
+    expect(result.totalChunks).toBe(1);
+    expect(result.skippedConfidentialCount).toBe(1);
 
-    // Verify upsert was called with only public chunk
     expect(mockClient.upsertChunks).toHaveBeenCalledWith([
       expect.objectContaining({
         id: "obsidian:public-note.md:0",
@@ -125,7 +122,7 @@ describe("sync diff and engine", () => {
     ]);
   });
 
-  it("should delete existing vectors when a document is modified to include #secret tag", async () => {
+  it("should delete existing vectors when a document is modified to include #confidential tag", async () => {
     const source: Source = {
       name: "obsidian",
       type: "git",
@@ -148,8 +145,8 @@ describe("sync diff and engine", () => {
         "note.md",
         {
           path: "note.md",
-          hash: "new_secret_hash",
-          content: "Now this note is #secret and sensitive."
+          hash: "new_confidential_hash",
+          content: "Now this note is #confidential and sensitive."
         }
       ]
     ]);
@@ -158,15 +155,13 @@ describe("sync diff and engine", () => {
 
     expect(result.modifiedCount).toBe(1);
     expect(result.totalChunks).toBe(0);
-    expect(result.skippedSecretCount).toBe(1);
+    expect(result.skippedConfidentialCount).toBe(1);
 
-    // Old 2 vectors must be deleted
     expect(mockClient.deleteVectors).toHaveBeenCalledWith([
       "obsidian:note.md:0",
       "obsidian:note.md:1"
     ]);
 
-    // No new upserts
     expect(mockClient.upsertChunks).not.toHaveBeenCalled();
   });
 });

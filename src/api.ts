@@ -13,7 +13,7 @@ export interface ChunkItem {
 export interface SyncStateItem {
   hash: string;
   chunkCount: number;
-  isSecret?: boolean;
+  isConfidential?: boolean;
 }
 
 export interface SyncState {

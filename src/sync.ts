@@ -1,7 +1,7 @@
 import * as core from "@actions/core";
 import type { Config, Env, Source } from "./config.js";
 import { KbApiClient, type SyncState, type ChunkItem } from "./api.js";
-import { chunkText, generateVectorId, hasSecretTag } from "./chunker.js";
+import { chunkText, generateVectorId, hasConfidentialTag } from "./chunker.js";
 import { loadGitDocuments } from "./sources/git.js";
 import { loadWebDocuments } from "./sources/web.js";
 
@@ -26,7 +26,7 @@ export interface SyncResult {
   deletedCount: number;
   unchangedCount: number;
   totalChunks: number;
-  skippedSecretCount: number;
+  skippedConfidentialCount: number;
 }
 
 export interface SyncOptions {
@@ -100,7 +100,7 @@ export async function syncSource(
     await client.deleteVectors(vectorIdsToDelete);
   }
 
-  // 2. Prepare chunks for added and modified documents (filtering out #secret documents)
+  // 2. Prepare chunks for added and modified documents (filtering out #confidential documents)
   const docsToIndex = [...diff.added, ...diff.modified];
   const newChunks: ChunkItem[] = [];
 
@@ -111,19 +111,19 @@ export async function syncSource(
     delete nextFiles[deletedPath];
   }
 
-  let skippedSecretCount = 0;
+  let skippedConfidentialCount = 0;
 
   for (const docPath of docsToIndex) {
     const doc = currentDocs.get(docPath);
     if (!doc) continue;
 
-    const isSecret = hasSecretTag(doc.content);
-    if (isSecret) {
-      skippedSecretCount++;
+    const isConfidential = hasConfidentialTag(doc.content);
+    if (isConfidential) {
+      skippedConfidentialCount++;
       nextFiles[docPath] = {
         hash: doc.hash,
         chunkCount: 0,
-        isSecret: true
+        isConfidential: true
       };
       continue;
     }
@@ -132,7 +132,7 @@ export async function syncSource(
     nextFiles[docPath] = {
       hash: doc.hash,
       chunkCount: chunks.length,
-      isSecret: false
+      isConfidential: false
     };
 
     for (const chunk of chunks) {
@@ -168,7 +168,7 @@ export async function syncSource(
     deletedCount: diff.deleted.length,
     unchangedCount: diff.unchanged.length,
     totalChunks: newChunks.length,
-    skippedSecretCount
+    skippedConfidentialCount
   };
 }
 
@@ -204,7 +204,7 @@ export async function runSync(config: Config, env: Env): Promise<SyncResult[]> {
     results.push(result);
 
     core.info(
-      `Source ${source.name} synced: +${result.addedCount} ~${result.modifiedCount} -${result.deletedCount} =${result.unchangedCount} (${result.totalChunks} chunks indexed, ${result.skippedSecretCount} secrets skipped)`
+      `Source ${source.name} synced: +${result.addedCount} ~${result.modifiedCount} -${result.deletedCount} =${result.unchangedCount} (${result.totalChunks} chunks indexed, ${result.skippedConfidentialCount} confidential notes skipped)`
     );
   }
 

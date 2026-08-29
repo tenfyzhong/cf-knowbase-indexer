@@ -22,7 +22,7 @@ export function generateVectorId(sourceName: string, filePath: string, chunkInde
   return `${sourceName}:${sanitizedPath}:${chunkIndex}`;
 }
 
-export function hasSecretTag(content: string): boolean {
+export function hasConfidentialTag(content: string): boolean {
   if (!content) return false;
 
   // 1. Check YAML frontmatter
@@ -30,29 +30,35 @@ export function hasSecretTag(content: string): boolean {
   if (frontmatterMatch) {
     const frontmatter = frontmatterMatch[1];
 
-    // Check tags: [..., secret, ...] or tag: [..., secret, ...]
+    // Check tags: [..., confidential, ...] or tag: [..., confidential, ...]
     const arrayMatch = frontmatter.match(/tags?\s*:\s*\[([\s\S]*?)\]/i);
     if (arrayMatch) {
       const items = arrayMatch[1].split(",").map((s) => s.trim().replace(/^['"#]+|['"]+$/g, ""));
-      if (items.some((item) => item.toLowerCase() === "secret" || item.toLowerCase().startsWith("secret/"))) {
+      if (
+        items.some(
+          (item) =>
+            item.toLowerCase() === "confidential" ||
+            item.toLowerCase().startsWith("confidential/")
+        )
+      ) {
         return true;
       }
     }
 
-    // Check tags: \n - secret
+    // Check tags: \n - confidential
     const listMatches = frontmatter.matchAll(/^\s*-\s*['"#]?([a-zA-Z0-9_\-/]+)['"]?/gim);
     for (const match of listMatches) {
       const tag = match[1].toLowerCase();
-      if (tag === "secret" || tag.startsWith("secret/")) {
+      if (tag === "confidential" || tag.startsWith("confidential/")) {
         return true;
       }
     }
 
-    // Check tags: secret or tag: secret
+    // Check tags: confidential or tag: confidential
     const singleMatch = frontmatter.match(/^tags?\s*:\s*['"#]?([a-zA-Z0-9_\-/]+)['"]?\s*$/im);
     if (singleMatch) {
       const tag = singleMatch[1].toLowerCase();
-      if (tag === "secret" || tag.startsWith("secret/")) {
+      if (tag === "confidential" || tag.startsWith("confidential/")) {
         return true;
       }
     }
@@ -63,8 +69,8 @@ export function hasSecretTag(content: string): boolean {
     .replace(/```[\s\S]*?```/g, "")
     .replace(/`[^`\n]+`/g, "");
 
-  // Match #secret or #secret/subtag (ensuring word boundaries and not markdown heading like "# Secret")
-  const tagRegex = /(?:^|\s)#(secret(?:\/[a-zA-Z0-9_\-]+)?)(?=\s|$|[.,;:!?()\[\]{}])/i;
+  // Match #confidential or #confidential/subtag (ensuring word boundaries and not markdown heading like "# Confidential")
+  const tagRegex = /(?:^|\s)#(confidential(?:\/[a-zA-Z0-9_\-]+)?)(?=\s|$|[.,;:!?()\[\]{}])/i;
   return tagRegex.test(bodyWithoutCode);
 }
 

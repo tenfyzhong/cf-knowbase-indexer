@@ -7,7 +7,7 @@ Automated incremental knowledge base indexer for personal notes, repositories, a
 `cf-kb-indexer` runs periodically via GitHub Actions (or locally) to synchronize documents from multiple sources into Cloudflare Vectorize via `cf-kb-api`:
 - **Private & Public Git Repositories**: Incremental indexing based on Git commit diffs (`git diff <lastCommit> HEAD`).
 - **Websites & Blogs**: Recursively crawls web pages and extracts clean content.
-- **Privacy Filter (`#secret`)**: Automatically skips Obsidian and Markdown notes tagged with `#secret` (in YAML frontmatter or inline body text), preventing sensitive notes from being vectorized.
+- **Privacy Filter (`#confidential`)**: Automatically skips Obsidian and Markdown notes tagged with `#confidential` (in YAML frontmatter or inline body text), preventing sensitive notes from being vectorized.
 - **Centralized API Architecture**: Communicates directly with `cf-kb-api` (`/vectors/upsert`, `/vectors/delete`, `/sync-state/:source`), letting the Worker handle edge embeddings (Workers AI) and Vectorize index updates.
 - **Log Sanitization**: Uses GitHub Actions secret masking (`@actions/core.setSecret`) to prevent leakage of private URLs, tokens, and SSH secrets into action execution logs.
 
@@ -17,7 +17,7 @@ Automated incremental knowledge base indexer for personal notes, repositories, a
 [ Git / Web Sources ]
         │
         ▼
- [ Chunking & Hashing ] ──(Git Commit Diff & #secret filter)──┐
+ [ Chunking & Hashing ] ──(Git Commit Diff & #confidential filter)──┐
         │                                                     │
         ▼                                                     ▼
  [ POST /vectors/upsert ]                             [ GET/PUT /sync-state/:source ]
