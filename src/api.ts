@@ -139,7 +139,7 @@ export class KnowbaseApiClient {
   async deleteVectors(ids: string[]): Promise<{ count: number }> {
     if (ids.length === 0) return { count: 0 };
 
-    const batchSize = 500;
+    const batchSize = 100;
     let totalDeleted = 0;
 
     for (let i = 0; i < ids.length; i += batchSize) {

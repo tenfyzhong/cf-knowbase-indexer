@@ -9,6 +9,7 @@ Automated incremental knowledge base indexer for personal notes, repositories, a
 - **Websites & Blogs**: Recursively crawls web pages and extracts clean content.
 - **Privacy Filter (`#confidential`)**: Automatically skips Obsidian and Markdown notes tagged with `#confidential` (in YAML frontmatter or inline body text), preventing sensitive notes from being vectorized.
 - **Centralized API Architecture**: Communicates directly with `cf-knowbase-api` (`/vectors/upsert`, `/vectors/delete`, `/sync-state/:source`), letting the Worker handle edge embeddings (Workers AI) and Vectorize index updates.
+- **Vectorize Limit Compliance**: Splits vector deletions into batches of at most 100 IDs, matching the Cloudflare Vectorize API limit.
 - **Log Sanitization**: Uses GitHub Actions secret masking (`@actions/core.setSecret`) to prevent leakage of private URLs, tokens, and credentials into action execution logs.
 
 ## Architecture

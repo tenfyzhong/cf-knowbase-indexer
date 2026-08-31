@@ -126,6 +126,30 @@ describe("KnowbaseApiClient", () => {
       })
     );
   });
+
+  it("should split vector deletes into batches of at most 100 ids", async () => {
+    const fetchMock = vi.fn().mockImplementation(async (_url, init: RequestInit) => {
+      const body = JSON.parse(String(init.body)) as { ids: string[] };
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ success: true, count: body.ids.length })
+      };
+    });
+    globalThis.fetch = fetchMock;
+
+    const ids = Array.from({ length: 201 }, (_, index) => `vector-${index}`);
+    const res = await client.deleteVectors(ids);
+
+    expect(res.count).toBe(201);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(
+      fetchMock.mock.calls.map(([, init]) =>
+        (JSON.parse(String(init.body)) as { ids: string[] }).ids.length
+      )
+    ).toEqual([100, 100, 1]);
+  });
+
   it("should clear all data via POST /vectors/clear", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
