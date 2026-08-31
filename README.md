@@ -89,3 +89,7 @@ To completely reset the knowledge base (e.g. wipe all vectors and reset KV sync 
   ```bash
   CF_KNOWBASE_API_URL='https://...' CF_KNOWBASE_API_TOKEN='...' pnpm run clear
   ```
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
