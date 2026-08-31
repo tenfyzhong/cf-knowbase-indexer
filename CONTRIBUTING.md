@@ -25,6 +25,8 @@ pnpm test
 pnpm build
 ```
 
+GitHub Actions runs the same test and build checks for every pull request and every push to `main`.
+
 Use the project's test framework for reusable unit tests. For functionality, bug fixes, refactoring, and behavior changes, write a test that fails for the expected reason before implementing the minimal production change that makes it pass.
 
 Do not use production credentials in unit tests or commit credentials to the repository. Keep logs free of source URLs, tokens, and other sensitive configuration.
