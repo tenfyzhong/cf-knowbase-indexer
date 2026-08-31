@@ -68,12 +68,23 @@ Configure the following GitHub Action Secrets (or `.env` file for local runs):
 
 ## Clearing Vectorize & Sync State
 
-To completely reset the knowledge base (e.g. wipe all vectors and reset KV sync states for a fresh sync):
-- In GitHub Actions: trigger the **Clear Knowledge Base Data** workflow (`workflow_dispatch`).
-- Or locally:
-  ```bash
-  CF_KNOWBASE_API_URL='https://...' CF_KNOWBASE_API_TOKEN='...' pnpm run clear
-  ```
+To clear one source, trigger the **Clear Knowledge Base Data** workflow and enter its exact source name in the optional `source` input. Leave the input blank to clear every source.
+
+Run the same operation locally by passing a source name after `--`:
+
+```bash
+CF_KNOWBASE_API_URL='https://...' \
+CF_KNOWBASE_API_TOKEN='...' \
+pnpm clear -- personal-notes
+```
+
+Omit the source name to completely reset the knowledge base:
+
+```bash
+CF_KNOWBASE_API_URL='https://...' \
+CF_KNOWBASE_API_TOKEN='...' \
+pnpm clear
+```
 
 For local development, testing, contribution guidelines, and local indexing instructions, see [CONTRIBUTING.md](CONTRIBUTING.md).
 

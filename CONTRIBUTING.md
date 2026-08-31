@@ -44,6 +44,14 @@ pnpm start
 
 Use a dedicated development deployment when testing changes that write vectors or synchronization state.
 
+To clear a single source in that deployment, pass its exact configured name:
+
+```bash
+CF_KNOWBASE_API_URL='https://knowbase-api.example.com' \
+CF_KNOWBASE_API_TOKEN='...' \
+pnpm clear -- personal-notes
+```
+
 ## Commits and Pull Requests
 
 - Create a dedicated branch from the latest `main`.

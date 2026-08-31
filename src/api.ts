@@ -166,12 +166,15 @@ export class KnowbaseApiClient {
 
     return { count: totalDeleted };
   }
-  async clearAllData(): Promise<{
+  async clearData(sourceName?: string): Promise<{
     success: boolean;
     deletedVectorsCount: number;
     clearedSources: string[];
   }> {
-    const url = `${this.env.apiUrl}/vectors/clear`;
+    const sourceQuery = sourceName
+      ? `?source=${encodeURIComponent(sourceName)}`
+      : "";
+    const url = `${this.env.apiUrl}/vectors/clear${sourceQuery}`;
 
     const res = await fetch(url, {
       method: "POST",
@@ -188,5 +191,13 @@ export class KnowbaseApiClient {
       deletedVectorsCount: number;
       clearedSources: string[];
     };
+  }
+
+  async clearAllData(): Promise<{
+    success: boolean;
+    deletedVectorsCount: number;
+    clearedSources: string[];
+  }> {
+    return this.clearData();
   }
 }
