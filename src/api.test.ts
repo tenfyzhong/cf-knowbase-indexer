@@ -152,4 +152,31 @@ describe("KnowbaseApiClient", () => {
       })
     );
   });
+
+  it("should clear one source via POST /vectors/clear", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        success: true,
+        deletedVectorsCount: 25,
+        clearedSources: ["personal notes"]
+      })
+    });
+    globalThis.fetch = fetchMock;
+
+    const res = await client.clearData("personal notes");
+    expect(res.success).toBe(true);
+    expect(res.deletedVectorsCount).toBe(25);
+    expect(res.clearedSources).toEqual(["personal notes"]);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://knowbase-api.tenfy.cn/vectors/clear?source=personal%20notes",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          Authorization: "Bearer valid_secret_token"
+        })
+      })
+    );
+  });
 });
