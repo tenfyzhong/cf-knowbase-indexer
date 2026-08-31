@@ -66,21 +66,6 @@ Configure the following GitHub Action Secrets (or `.env` file for local runs):
 ]
 ```
 
-## Local Development
-
-```bash
-# Install dependencies
-pnpm install
-
-# Run unit tests
-pnpm test
-
-# Build TypeScript
-pnpm build
-
-# Run local indexing with environment variables
-CONFIG_JSON='[...]' CF_KNOWBASE_API_URL='https://...' CF_KNOWBASE_API_TOKEN='...' node dist/index.js
-```
 ## Clearing Vectorize & Sync State
 
 To completely reset the knowledge base (e.g. wipe all vectors and reset KV sync states for a fresh sync):
@@ -89,6 +74,8 @@ To completely reset the knowledge base (e.g. wipe all vectors and reset KV sync 
   ```bash
   CF_KNOWBASE_API_URL='https://...' CF_KNOWBASE_API_TOKEN='...' pnpm run clear
   ```
+
+For local development, testing, contribution guidelines, and local indexing instructions, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
