@@ -87,6 +87,23 @@ describe("config parser", () => {
     expect(() => parseEnv({})).toThrow();
   });
 
+  it.each(["git", "web"] as const)("should mask all %s source names, including short and encoded names", (type) => {
+    const names = ["private-notes", "x", "ab", "abc", "私人 notes/2026"];
+    const config = parseConfig(JSON.stringify(names.map((name) => ({
+      name,
+      type,
+      url: "https://example.com/source"
+    }))));
+
+    sanitizeLogs(config, { apiUrl: "https://api.example.com", apiToken: "test-token" });
+
+    for (const name of names) {
+      expect(core.setSecret).toHaveBeenCalledWith(name);
+      expect(core.setSecret).toHaveBeenCalledWith(encodeURIComponent(name));
+    }
+    expect(config.map((source) => source.name)).toEqual(names);
+  });
+
   it("should mask sensitive values with @actions/core.setSecret", () => {
     const config: Config = [
       {
