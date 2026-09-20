@@ -78,6 +78,13 @@ export function sanitizeLogs(config: Config, env: Env): void {
     core.setSecret(globalGhToken);
   }
   for (const src of config) {
+    core.setSecret(src.name);
+    // API errors may contain the source name encoded in a request URL.
+    const encodedName = encodeURIComponent(src.name);
+    if (encodedName !== src.name) {
+      core.setSecret(encodedName);
+    }
+
     if (src.url && src.url.length > 3) {
       core.setSecret(src.url);
 
