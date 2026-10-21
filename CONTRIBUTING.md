@@ -4,7 +4,7 @@ Thank you for contributing to `cf-knowbase-indexer`.
 
 ## Prerequisites
 
-- Node.js 20 or later
+- Node.js 22.23.4 or a newer 22.x release (22.23.4 is used in CI)
 - pnpm 9
 - A deployed `cf-knowbase-api` instance for integration testing
 
